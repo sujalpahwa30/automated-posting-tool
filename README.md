@@ -50,7 +50,7 @@ A real captured request/response and server log are in
 | `linkedin` | LinkedIn | `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_AUTHOR_URN` | `POST /rest/posts` | `https://www.linkedin.com/feed/update/{urn}` | `true` (`visibility: PUBLIC`) |
 | `telegram` | Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | `sendMessage` to a channel | `https://t.me/{username}/{id}` | `true` only for channels with a public username |
 | `discord` | Discord | `DISCORD_WEBHOOK_URL` | Webhook message | `https://discord.com/channels/{guild}/{channel}/{message}` | `true` when the webhook belongs to a guild channel |
-| `bluesky` | Bluesky | `BLUESKY_IDENTIFIER`, `BLUESKY_APP_PASSWORD` | `createSession` + `createPost` | `https://bsky.app/profile/{handle}/post/{rkey}` | `true` |
+| `bluesky` | Bluesky | `BLUESKY_IDENTIFIER`, `BLUESKY_APP_PASSWORD` | `createSession` + `repo.createRecord` | `https://bsky.app/profile/{handle}/post/{rkey}` | `true` |
 | `mastodon` | Mastodon | `MASTODON_INSTANCE_URL`, `MASTODON_ACCESS_TOKEN` | `POST /api/v1/statuses` | Status URL from the API | `true` for `public` / `unlisted` |
 | `devto` | Dev.to | `DEVTO_API_KEY` | Published article | Article URL from the API | `true` |
 | `demo` | Local sandbox | none | In-memory store | `http://localhost:4000/demo/posts/{id}` | `false` for localhost |
@@ -99,7 +99,7 @@ PostingService
   ├── LinkedIn ──► api.linkedin.com
   ├── Telegram ──► api.telegram.org
   ├── Discord  ──► webhook URL
-  ├── Bluesky  ──► PDS: createSession → createPost
+  ├── Bluesky  ──► PDS: createSession → repo.createRecord
   ├── Mastodon ──► /api/v1/statuses
   ├── Dev.to   ──► /api/articles
   └── Demo     ──► in-memory store + GET /demo/posts/{id}
@@ -280,35 +280,38 @@ Top-level behaviour:
 
 #### Sample real response
 
-`PLATFORMS=demo,x`, with no X credentials (full run in
-[`docs/sample-run.txt`](docs/sample-run.txt)):
+Captured live with `PLATFORMS=bluesky,demo` and a real Bluesky account (full run
+in [`docs/sample-run.txt`](docs/sample-run.txt)):
 
 ```json
 {
   "success": true,
-  "summary": { "total": 2, "successful": 1, "failed": 1 },
+  "summary": { "total": 2, "successful": 2, "failed": 0 },
   "results": [
     {
-      "platform": "Demo (local sandbox)",
+      "platform": "Bluesky",
       "status": "success",
-      "posted_url": "http://localhost:4000/demo/posts/cbd4292188c64d44",
-      "public_access": false,
+      "posted_url": "https://bsky.app/profile/sujalpahwa30.bsky.social/post/3n2hdbam6lu2b",
+      "public_access": true,
       "date": "2026-11-16",
-      "time": "18:19:16",
+      "time": "20:05:58",
       "error": null
     },
     {
-      "platform": "X (Twitter)",
-      "status": "failed",
-      "posted_url": null,
+      "platform": "Demo (local sandbox)",
+      "status": "success",
+      "posted_url": "http://localhost:4000/demo/posts/3ced8d35eb0f4f95",
       "public_access": false,
-      "date": null,
-      "time": null,
-      "error": "Platform is not configured. Set: X_API_BEARER_TOKEN"
+      "date": "2026-11-16",
+      "time": "20:05:57",
+      "error": null
     }
   ]
 }
 ```
+
+`date`/`time` are UTC. The Bluesky URL was confirmed publicly readable without
+credentials via `app.bsky.feed.getPostThread` on the public AppView.
 
 #### Sample validation error
 
@@ -384,7 +387,7 @@ is returned, and disables `@everyone`/role pings via `allowed_mentions`.
 **Bluesky** — use an **App Password** (Settings → Privacy and security → App
 passwords) rather than the account password. The integration creates a session
 with `com.atproto.server.createSession`, then writes an
-`app.bsky.feed.post` record through `com.atproto.repo.createPost`.
+`app.bsky.feed.post` record through `com.atproto.repo.createRecord`.
 
 **Mastodon** — create an application under *Preferences → Development* with the
 `write:statuses` scope and copy its access token. Any Mastodon-compatible

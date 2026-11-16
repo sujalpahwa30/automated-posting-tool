@@ -49,7 +49,7 @@ class BlueskyPlatform(Platform):
         document, _ = await self.request_json(
             client,
             "POST",
-            f"{base_url}/com.atproto.repo.createPost",
+            f"{base_url}/com.atproto.repo.createRecord",
             headers={"Authorization": f"Bearer {access_jwt}"},
             json_body={
                 "repo": did,

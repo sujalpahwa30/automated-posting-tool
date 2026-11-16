@@ -211,7 +211,7 @@ def test_bluesky_creates_session_then_post(make_settings) -> None:
                     "handle": "demo.bsky.social",
                 },
             )
-        if request.url.path.endswith("/com.atproto.repo.createPost"):
+        if request.url.path.endswith("/com.atproto.repo.createRecord"):
             assert request.headers["authorization"] == "Bearer jwt-value"
             body = json.loads(request.content)
             assert body["collection"] == "app.bsky.feed.post"

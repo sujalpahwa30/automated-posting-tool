@@ -1,17 +1,17 @@
-Automated Multi-Platform Posting API - sample local run
-========================================================
+Automated Multi-Platform Posting API - sample live run
+======================================================
 
-Date: 2026-11-16 (UTC)
-Environment: Windows, Python 3.12.6, PLATFORMS=demo,x (X has no credentials on purpose)
+Date: 2026-11-16 20:05 UTC (timestamps in responses are UTC)
+Environment: Windows, Python 3.12, PLATFORMS=bluesky,demo
 Server: uvicorn app.main:app --host 0.0.0.0 --port 4000
 
 1) Startup
 ----------
 
-2026-11-16T18:19:16Z INFO     automated_posting: Starting Automated Multi-Platform Posting API v1.0.0 (development)
-2026-11-16T18:19:16Z INFO     automated_posting: Enabled platforms: demo, x
+2026-11-16T20:05:23Z INFO     automated_posting: Starting Automated Multi-Platform Posting API v1.0.0 (development)
+2026-11-16T20:05:23Z INFO     automated_posting: Enabled platforms: bluesky, demo
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:4000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://0.0.0.0:4000 (Press CTRL+C to quit)
 
 2) Publish a valid message
 --------------------------
@@ -28,45 +28,80 @@ Content-Type: application/json
 
 {
   "success": true,
-  "summary": {"total": 2, "successful": 1, "failed": 1},
+  "summary": {
+    "total": 2,
+    "successful": 2,
+    "failed": 0
+  },
   "results": [
     {
-      "platform": "Demo (local sandbox)",
+      "platform": "Bluesky",
       "status": "success",
-      "posted_url": "http://localhost:4000/demo/posts/cbd4292188c64d44",
-      "public_access": false,
+      "posted_url": "https://bsky.app/profile/sujalpahwa30.bsky.social/post/3n2hdbam6lu2b",
+      "public_access": true,
       "date": "2026-11-16",
-      "time": "18:19:16",
+      "time": "20:05:58",
       "error": null
     },
     {
-      "platform": "X (Twitter)",
-      "status": "failed",
-      "posted_url": null,
+      "platform": "Demo (local sandbox)",
+      "status": "success",
+      "posted_url": "http://localhost:4000/demo/posts/3ced8d35eb0f4f95",
       "public_access": false,
-      "date": null,
-      "time": null,
-      "error": "Platform is not configured. Set: X_API_BEARER_TOKEN"
+      "date": "2026-11-16",
+      "time": "20:05:57",
+      "error": null
     }
   ]
 }
 
-3) Read the stored demo post (proves posted_url is reachable)
+3) Prove the Bluesky post is public (no credentials used)
+---------------------------------------------------------
+
+Resolve the handle to a DID:
+
+GET https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=sujalpahwa30.bsky.social
+
+HTTP/1.1 200 OK
+{"did":"did:plc:wadwmksarr5xfj4fydvmelf7"}
+
+Read the posted record through the unauthenticated public AppView:
+
+GET https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=at://did:plc:wadwmksarr5xfj4fydvmelf7/app.bsky.feed.post/3n2hdbam6lu2b&depth=0
+
+HTTP/1.1 200 OK
+
+  author    -> sujalpahwa30.bsky.social
+  text      -> Check out our latest business platform and grow your online visibility. https://example.com
+  createdAt -> 2026-11-16T20:05:58.215Z
+  uri       -> at://did:plc:wadwmksarr5xfj4fydvmelf7/app.bsky.feed.post/3n2hdbam6lu2b
+
+The posted_url also loads in a private/incognito browser window:
+
+GET https://bsky.app/profile/sujalpahwa30.bsky.social/post/3n2hdbam6lu2b
+
+HTTP/1.1 200 OK (text/html, contains the message text)
+
+4) Read the stored demo post (proves posted_url is reachable)
 -------------------------------------------------------------
 
-GET http://localhost:4000/demo/posts/cbd4292188c64d44
+GET http://localhost:4000/demo/posts/3ced8d35eb0f4f95
 
 HTTP/1.1 200 OK
 
 {
-  "id": "cbd4292188c64d44",
+  "id": "3ced8d35eb0f4f95",
   "message": "Check out our latest business platform and grow your online visibility. https://example.com",
   "cta_url": "https://example.com",
-  "created_at": "2026-11-16T18:19:16.525005Z",
-  "url": "http://localhost:4000/demo/posts/cbd4292188c64d44"
+  "created_at": "2026-11-16T20:05:57.180321Z",
+  "url": "http://localhost:4000/demo/posts/3ced8d35eb0f4f95"
 }
 
-4) Invalid input: two CTA links
+The demo platform is a local sandbox only, so its public_access is false and its
+URL is not reachable from another machine. It is not counted towards the
+third-party platform requirement.
+
+5) Invalid input: two CTA links
 -------------------------------
 
 POST http://localhost:4000/posting
@@ -89,13 +124,38 @@ Content-Type: application/json
   ]
 }
 
-5) Server log excerpt
+6) Invalid input: no CTA link
+-----------------------------
+
+POST http://localhost:4000/posting
+
+{
+  "message": "no link here at all"
+}
+
+HTTP/1.1 422 Unprocessable Entity
+
+{
+  "detail": "Request validation failed",
+  "errors": [
+    {
+      "field": "message",
+      "message": "message must contain exactly one CTA link (found 0)",
+      "type": "value_error"
+    }
+  ]
+}
+
+Rejected requests never reach the platforms, so no post is created.
+
+7) Server log excerpt
 ---------------------
 
-2026-11-16T18:19:16Z INFO     automated_posting.service: platform publish key=demo status=success duration_ms=0 url=http://localhost:4000/demo/posts/cbd4292188c64d44 error=None
-2026-11-16T18:19:16Z INFO     automated_posting.service: platform publish key=x status=failed duration_ms=0 url=None error=Platform is not configured. Set: X_API_BEARER_TOKEN
-2026-11-16T18:19:16Z INFO     automated_posting.service: posting finished platforms=2 successful=1 failed=1 duration_ms=2
-2026-11-16T18:19:16Z INFO     automated_posting: POST /posting -> 200 (6.0 ms)
+2026-11-16T20:05:57Z INFO     automated_posting.service: platform publish key=demo status=success duration_ms=0 url=http://localhost:4000/demo/posts/3ced8d35eb0f4f95 error=None
+2026-11-16T20:05:58Z INFO     automated_posting.service: platform publish key=bluesky status=success duration_ms=1421 url=https://bsky.app/profile/sujalpahwa30.bsky.social/post/3n2hdbam6lu2b error=None
+2026-11-16T20:05:58Z INFO     automated_posting.service: posting finished platforms=2 successful=2 failed=0 duration_ms=1422
+2026-11-16T20:05:58Z INFO     automated_posting: POST /posting -> 200 (1431.1 ms)
 
-The X failure was isolated: the demo platform still succeeded and the API returned
-HTTP 200 with per-platform results.
+Platforms are published concurrently, so a slow or failing provider does not
+block the others: each platform returns its own result and the endpoint always
+answers with HTTP 200 plus per-platform status details.
