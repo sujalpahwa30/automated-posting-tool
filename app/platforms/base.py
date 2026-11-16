@@ -107,8 +107,12 @@ class Platform(ABC):
         params: dict[str, str] | None = None,
         expected: tuple[int, ...] = (200, 201),
         secrets: tuple[str, ...] = (),
+        expect_json: bool = True,
     ) -> tuple[Any, httpx.Response]:
         """Call an endpoint and return (parsed JSON or None, raw response).
+
+        Set ``expect_json=False`` for endpoints that answer with a plain-text
+        body (Slack webhooks reply ``ok``).
 
         The URL is deliberately never echoed in errors: several providers
         (Telegram, Discord) embed credentials in the request URL.
@@ -131,7 +135,7 @@ class Platform(ABC):
             detail = _redact(_describe_error(response), (*self._secrets(), *secrets))
             raise PlatformError(f"{self.name} API returned HTTP {response.status_code}: {detail}")
 
-        if not response.content:
+        if not response.content or not expect_json:
             return None, response
         try:
             return response.json(), response

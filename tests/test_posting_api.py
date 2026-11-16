@@ -223,6 +223,7 @@ def test_health_and_platform_listing(client) -> None:
         "linkedin",
         "telegram",
         "discord",
+        "slack",
         "bluesky",
         "mastodon",
         "devto",

@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # Discord - channel webhook URL.
     discord_webhook_url: str | None = None
 
+    # Slack - incoming webhook URL.
+    slack_webhook_url: str | None = None
+
     # Bluesky / AT Protocol - app password (never the main account password).
     bluesky_identifier: str | None = None
     bluesky_app_password: str | None = None

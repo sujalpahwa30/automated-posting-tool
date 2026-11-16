@@ -15,6 +15,7 @@ from app.platforms.devto import DevToPlatform
 from app.platforms.discord import DiscordPlatform
 from app.platforms.linkedin import LinkedInPlatform
 from app.platforms.mastodon import MastodonPlatform
+from app.platforms.slack import SlackPlatform
 from app.platforms.telegram import TelegramPlatform
 from app.platforms.x import XPlatform
 
@@ -196,6 +197,48 @@ def test_discord_without_guild_is_not_public(make_settings) -> None:
     assert result.status == "success"
     assert result.posted_url is None
     assert result.public_access is False
+
+
+def test_slack_webhook_delivers_message(make_settings) -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, text="ok")
+
+    platform = SlackPlatform(make_settings(slack_webhook_url="https://hooks.slack.com/services/T0/B0/webhook-token"))
+    result = asyncio.run(_publish(platform, handler))
+
+    assert result.status == "success"
+    assert result.error is None
+    assert result.date and result.time
+    assert captured["url"] == "https://hooks.slack.com/services/T0/B0/webhook-token"
+    assert captured["body"] == {"text": MESSAGE, "unfurl_links": False, "unfurl_media": False}
+    # Incoming webhooks expose no permalink for the delivered message.
+    assert result.posted_url is None
+    assert result.public_access is False
+
+
+def test_slack_webhook_rejection_is_reported(make_settings) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="invalid_payload")
+
+    platform = SlackPlatform(make_settings(slack_webhook_url="https://hooks.slack.com/services/T0/B0/webhook-token"))
+    result = asyncio.run(_publish(platform, handler))
+
+    assert result.status == "failed"
+    assert "invalid_payload" in result.error
+    # The webhook token must never appear in the error message.
+    assert "webhook-token" not in result.error
+
+
+def test_slack_without_webhook_is_not_configured(make_settings) -> None:
+    platform = SlackPlatform(make_settings())
+    result = asyncio.run(_publish(platform, lambda request: httpx.Response(200, text="ok")))
+
+    assert result.status == "failed"
+    assert "SLACK_WEBHOOK_URL" in result.error
 
 
 def test_bluesky_creates_session_then_post(make_settings) -> None:

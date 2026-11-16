@@ -13,10 +13,10 @@ POST http://localhost:4000/posting
 {"message": "Check out our latest business platform and grow your online visibility. https://example.com"}
 ```
 
-- **7 real third-party integrations**: X (Twitter), LinkedIn, Telegram, Discord,
-  Bluesky, Mastodon, Dev.to.
+- **8 real third-party integrations**: X (Twitter), LinkedIn, Telegram, Discord,
+  Slack, Bluesky, Mastodon, Dev.to.
 - **1 local demo integration** for offline review without credentials.
-- **52 automated tests**, linted with Ruff, CI workflow included.
+- **55 automated tests**, linted with Ruff, CI workflow included.
 - Interactive docs: <http://localhost:4000/docs>.
 
 A real captured request/response and server log are in
@@ -50,6 +50,7 @@ A real captured request/response and server log are in
 | `linkedin` | LinkedIn | `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_AUTHOR_URN` | `POST /rest/posts` | `https://www.linkedin.com/feed/update/{urn}` | `true` (`visibility: PUBLIC`) |
 | `telegram` | Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | `sendMessage` to a channel | `https://t.me/{username}/{id}` | `true` only for channels with a public username |
 | `discord` | Discord | `DISCORD_WEBHOOK_URL` | Webhook message | `https://discord.com/channels/{guild}/{channel}/{message}` | `true` when the webhook belongs to a guild channel |
+| `slack` | Slack | `SLACK_WEBHOOK_URL` | Incoming-webhook message | none (webhooks return no permalink) | `false` |
 | `bluesky` | Bluesky | `BLUESKY_IDENTIFIER`, `BLUESKY_APP_PASSWORD` | `createSession` + `repo.createRecord` | `https://bsky.app/profile/{handle}/post/{rkey}` | `true` |
 | `mastodon` | Mastodon | `MASTODON_INSTANCE_URL`, `MASTODON_ACCESS_TOKEN` | `POST /api/v1/statuses` | Status URL from the API | `true` for `public` / `unlisted` |
 | `devto` | Dev.to | `DEVTO_API_KEY` | Published article | Article URL from the API | `true` |
@@ -71,6 +72,8 @@ the adapter modules under [`app/platforms/`](app/platforms/).
   because no public `t.me` URL can be produced.
 - Discord is a heuristic: the integration can prove the message belongs to a
   guild channel, but not whether that channel/server is public.
+- Slack incoming webhooks return neither a permalink nor channel metadata, so
+  `posted_url` is `null` and `public_access` is `false` even on success.
 - X, LinkedIn and Bluesky assume the connected account and post are public.
 - Mastodon uses the `visibility` returned by the instance; locked accounts may
   still restrict reach.
@@ -99,6 +102,7 @@ PostingService
   ├── LinkedIn ──► api.linkedin.com
   ├── Telegram ──► api.telegram.org
   ├── Discord  ──► webhook URL
+  ├── Slack    ──► incoming webhook URL
   ├── Bluesky  ──► PDS: createSession → repo.createRecord
   ├── Mastodon ──► /api/v1/statuses
   ├── Dev.to   ──► /api/articles
@@ -197,6 +201,7 @@ See [`.env.example`](.env.example) for the full annotated list.
 | `TELEGRAM_BOT_TOKEN` | — | Bot token from `@BotFather`. |
 | `TELEGRAM_CHAT_ID` | — | `@public_channel` or numeric chat id. |
 | `DISCORD_WEBHOOK_URL` | — | Channel webhook URL. |
+| `SLACK_WEBHOOK_URL` | — | Incoming webhook URL. |
 | `BLUESKY_IDENTIFIER` | — | Handle or email. |
 | `BLUESKY_APP_PASSWORD` | — | App password (not the main password). |
 | `BLUESKY_SERVICE_URL` | `https://bsky.social` | PDS base URL. |
@@ -384,6 +389,13 @@ returns the channel username, which is used to build the public `t.me` URL.
 Webhooks*. The integration calls it with `?wait=true` so the created message id
 is returned, and disables `@everyone`/role pings via `allowed_mentions`.
 
+**Slack** — create a free workspace, then add an *Incoming Webhook* under
+<https://api.slack.com/apps> (*Create New App → From scratch → Incoming
+Webhooks → Add New Webhook to Workspace*) and copy the `hooks.slack.com`
+URL. Slack answers `200 ok` with a plain-text body, which is why this adapter
+reads the raw response instead of JSON. Incoming webhooks cannot return a
+permalink, so `posted_url` is `null` while the message is still delivered.
+
 **Bluesky** — use an **App Password** (Settings → Privacy and security → App
 passwords) rather than the account password. The integration creates a session
 with `com.atproto.server.createSession`, then writes an
@@ -410,7 +422,7 @@ ruff check .
 Expected result:
 
 ```
-52 passed
+55 passed
 All checks passed!
 ```
 
@@ -479,8 +491,8 @@ The image runs the exact command from the brief:
 - `.env` is git-ignored; only `.env.example` with empty values is committed.
 - Error messages are sanitised: known secrets and credential-bearing URLs are
   never echoed, and provider error bodies are redacted and truncated.
-- `httpx` request logging is disabled (`WARNING`) because Telegram and Discord
-  embed credentials in the request URL.
+- `httpx` request logging is disabled (`WARNING`) because Telegram, Discord and
+  Slack embed credentials in the request URL.
 - Request bodies and message text are not logged.
 - Unexpected exceptions are logged server-side with a traceback but returned to
   clients as a generic message.
@@ -546,6 +558,7 @@ automated-posting/
 │   │   ├── linkedin.py          # LinkedIn Posts API
 │   │   ├── telegram.py          # Telegram Bot API
 │   │   ├── discord.py           # Discord webhook
+│   │   ├── slack.py             # Slack incoming webhook
 │   │   ├── bluesky.py           # AT Protocol session + post
 │   │   ├── mastodon.py          # Mastodon statuses API
 │   │   ├── devto.py             # Forem articles API

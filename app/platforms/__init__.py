@@ -12,6 +12,7 @@ from app.platforms.devto import DevToPlatform
 from app.platforms.discord import DiscordPlatform
 from app.platforms.linkedin import LinkedInPlatform
 from app.platforms.mastodon import MastodonPlatform
+from app.platforms.slack import SlackPlatform
 from app.platforms.telegram import TelegramPlatform
 from app.platforms.x import XPlatform
 
@@ -20,6 +21,7 @@ PLATFORM_CLASSES: tuple[type[Platform], ...] = (
     LinkedInPlatform,
     TelegramPlatform,
     DiscordPlatform,
+    SlackPlatform,
     BlueskyPlatform,
     MastodonPlatform,
     DevToPlatform,
