@@ -54,31 +54,51 @@ are in [`docs/screenshots/`](docs/screenshots/).
 ## Live evidence
 
 One `POST /posting` with `PLATFORMS=telegram,discord,slack,bluesky,tumblr`
-returned `5/5 success` in 1.8 s. Each result was opened separately to confirm
-the post is really public:
+returned `5/5 success` in 1812 ms. Each result was then opened separately to
+confirm the post is really there:
 
-| Platform | Result | Public URL | Screenshot |
+| Platform | Result | Public URL | Evidence |
 |---|---|---|---|
-| Telegram | `success` | <https://t.me/sp_autopost_test/5> | [Telegram](docs/screenshots/01-telegram.png) |
-| Discord | `success` | `discord.com/channels/…/1572156341689257994` | [Discord](docs/screenshots/02-discord.png) |
-| Bluesky | `success` | <https://bsky.app/profile/sujalpahwa30.bsky.social/post/3n2ikimutav2j> | [Bluesky](docs/screenshots/03-bluesky.png) |
-| Slack | `success` | none — webhooks expose no permalink | [Slack](docs/screenshots/04-slack.png) |
-| Tumblr | `success` | <https://sujalpahwa30.tumblr.com/post/833514825848143872> | [Tumblr](docs/screenshots/05-tumblr.png) |
+| Telegram | `success` | <https://t.me/sp_autopost_test/5> | [screenshot](docs/screenshots/01-telegram.png) |
+| Discord | `success` | `discord.com/channels/…/1572156341689257994` | [screenshot](docs/screenshots/02-discord.png) |
+| Bluesky | `success` | <https://bsky.app/profile/sujalpahwa30.bsky.social/post/3n2ikimutav2j> | [screenshot](docs/screenshots/03-bluesky.png) |
+| Slack | `success` | none — webhooks expose no permalink | [screenshot](docs/screenshots/04-slack.png) |
+| Tumblr | `success` | <https://sujalpahwa30.tumblr.com/post/833514825848143872> | [screenshot](docs/screenshots/05-tumblr.png) |
 
-| Telegram | Discord |
-|---|---|
-| ![Telegram post](docs/screenshots/01-telegram.png) | ![Discord post](docs/screenshots/02-discord.png) |
+### Screenshots
 
-| Bluesky | Tumblr |
-|---|---|
-| ![Bluesky post](docs/screenshots/03-bluesky.png) | ![Tumblr post](docs/screenshots/05-tumblr.png) |
+Telegram, Bluesky and Tumblr are shown in a **logged-out Chrome Incognito
+window**, so they are exactly what an external visitor sees. Discord and Slack
+live behind their own logins, so those two shots show the delivered message
+inside the channel.
 
-![Slack post](docs/screenshots/04-slack.png)
+**Telegram** — <https://t.me/sp_autopost_test/5>, channel `testingChannel`, 17 Nov 13:18
 
-Verification was done in a private/incognito window, not just in the tool's own
-API response. The Tumblr post was additionally read back through the public v2
-API (`state: published`) and Bluesky through the unauthenticated public AppView.
-Exact commands and outputs are in [`docs/sample-run.txt`](docs/sample-run.txt).
+![Telegram post opened in incognito](docs/screenshots/01-telegram.png)
+
+**Bluesky** — <https://bsky.app/profile/sujalpahwa30.bsky.social/post/3n2ikimutav2j>, 13:18 · 17 Nov 2026
+
+![Bluesky post opened in incognito](docs/screenshots/03-bluesky.png)
+
+**Tumblr** — <https://sujalpahwa30.tumblr.com/post/833514825848143872>
+
+![Tumblr post opened in incognito](docs/screenshots/05-tumblr.png)
+
+**Discord** — `#general` on the `Royal King's server`, delivered by the
+`Autopost Test` app; the 13:18 message is the one from this run
+
+![Discord message delivered to #general](docs/screenshots/02-discord.png)
+
+**Slack** — `#posting-test` in `TestingWorkspace`, delivered by the `posting-api`
+app at 1:18 PM. Incoming webhooks return no message identifier, which is why the
+API reports `posted_url: null` for Slack.
+
+![Slack message delivered to #posting-test](docs/screenshots/04-slack.png)
+
+Verification was not limited to the screenshots. The Tumblr post was read back
+through the public v2 API (`state: published`) and Bluesky through the
+unauthenticated public AppView. Exact commands and outputs are in
+[`docs/sample-run.txt`](docs/sample-run.txt).
 
 **Verification status of all nine integrations**
 
@@ -170,7 +190,9 @@ Key properties:
 - **Concurrency** — all platforms are contacted in parallel, so total latency is
   close to the slowest enabled platform rather than the sum.
 - **No retries on POST** — retrying a non-idempotent publish can create duplicate
-  posts. Failures are reported instead.
+  posts. Failures are reported instead. The one exception is Tumblr, which retries
+  once only when the connection is reset before any response arrives, so no post
+  can have been created twice.
 - **Credential checks happen before any network call**, so a missing token is
   reported in milliseconds.
 
@@ -679,6 +701,7 @@ automated-posting/
 │   ├── test_platforms.py
 │   └── test_posting_api.py
 ├── docs/sample-run.txt          # real captured run
+├── docs/screenshots/            # evidence images used by this README
 ├── .env.example
 ├── .gitignore
 ├── .dockerignore
