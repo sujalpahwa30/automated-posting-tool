@@ -17,6 +17,7 @@ from app.platforms.linkedin import LinkedInPlatform
 from app.platforms.mastodon import MastodonPlatform
 from app.platforms.slack import SlackPlatform
 from app.platforms.telegram import TelegramPlatform
+from app.platforms.tumblr import TumblrPlatform
 from app.platforms.x import XPlatform
 
 MESSAGE = "Check out our latest business platform and grow your online visibility. https://example.com"
@@ -261,6 +262,68 @@ def test_slack_without_webhook_is_not_configured(make_settings) -> None:
 
     assert result.status == "failed"
     assert "SLACK_WEBHOOK_URL" in result.error
+
+
+def test_tumblr_publishes_text_post(make_settings) -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["authorization"] = request.headers["authorization"]
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            201,
+            json={
+                "meta": {"status": 201, "msg": "Created"},
+                "response": {"id": 123456789, "id_string": "123456789", "state": "published"},
+            },
+        )
+
+    platform = TumblrPlatform(
+        make_settings(
+            tumblr_access_token="tumblr-token",
+            tumblr_blog_identifier="demo-blog.tumblr.com",
+        )
+    )
+    result = asyncio.run(_publish(platform, handler))
+
+    assert result.status == "success"
+    assert result.posted_url == "https://demo-blog.tumblr.com/post/123456789"
+    assert result.public_access is True
+    assert captured["url"] == "https://api.tumblr.com/v2/blog/demo-blog.tumblr.com/post"
+    assert captured["authorization"] == "Bearer tumblr-token"
+    assert captured["body"]["content"] == [{"type": "text", "text": MESSAGE}]
+    assert captured["body"]["state"] == "published"
+
+
+def test_tumblr_blog_name_gets_tumblr_suffix(make_settings) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v2/blog/demo-blog.tumblr.com/post"
+        return httpx.Response(201, json={"response": {"id": 42}})
+
+    platform = TumblrPlatform(
+        make_settings(tumblr_access_token="tumblr-token", tumblr_blog_identifier="https://demo-blog/")
+    )
+    result = asyncio.run(_publish(platform, handler))
+
+    assert result.posted_url == "https://demo-blog.tumblr.com/post/42"
+
+
+def test_tumblr_api_error_is_reported(make_settings) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            401,
+            json={"meta": {"status": 401, "msg": "Unauthorized"}, "response": []},
+        )
+
+    platform = TumblrPlatform(
+        make_settings(tumblr_access_token="tumblr-token", tumblr_blog_identifier="demo-blog.tumblr.com")
+    )
+    result = asyncio.run(_publish(platform, handler))
+
+    assert result.status == "failed"
+    assert "HTTP 401" in result.error
+    assert "tumblr-token" not in result.error
 
 
 def test_bluesky_creates_session_then_post(make_settings) -> None:

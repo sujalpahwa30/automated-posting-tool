@@ -13,10 +13,10 @@ POST http://localhost:4000/posting
 {"message": "Check out our latest business platform and grow your online visibility. https://example.com"}
 ```
 
-- **8 real third-party integrations**: X (Twitter), LinkedIn, Telegram, Discord,
-  Slack, Bluesky, Mastodon, Dev.to.
+- **9 real third-party integrations**: X (Twitter), LinkedIn, Telegram, Discord,
+  Slack, Bluesky, Mastodon, Tumblr, Dev.to.
 - **1 local demo integration** for offline review without credentials.
-- **56 automated tests**, linted with Ruff, CI workflow included.
+- **59 automated tests**, linted with Ruff, CI workflow included.
 - Interactive docs: <http://localhost:4000/docs>.
 
 A real captured request/response and server log are in
@@ -53,6 +53,7 @@ A real captured request/response and server log are in
 | `slack` | Slack | `SLACK_WEBHOOK_URL` | Incoming-webhook message | none (webhooks return no permalink) | `false` |
 | `bluesky` | Bluesky | `BLUESKY_IDENTIFIER`, `BLUESKY_APP_PASSWORD` | `createSession` + `repo.createRecord` | `https://bsky.app/profile/{handle}/post/{rkey}` | `true` |
 | `mastodon` | Mastodon | `MASTODON_INSTANCE_URL`, `MASTODON_ACCESS_TOKEN` | `POST /api/v1/statuses` | Status URL from the API | `true` for `public` / `unlisted` |
+| `tumblr` | Tumblr | `TUMBLR_ACCESS_TOKEN`, `TUMBLR_BLOG_IDENTIFIER` | Text post via v2 `blog/{blog}/post` | `https://{blog}/post/{id}` | `true` (`state: published`) |
 | `devto` | Dev.to | `DEVTO_API_KEY` | Published article | Article URL from the API | `true` |
 | `demo` | Local sandbox | none | In-memory store | `http://localhost:4000/demo/posts/{id}` | `false` for localhost |
 
@@ -105,6 +106,7 @@ PostingService
   ├── Slack    ──► incoming webhook URL
   ├── Bluesky  ──► PDS: createSession → repo.createRecord
   ├── Mastodon ──► /api/v1/statuses
+  ├── Tumblr   ──► api.tumblr.com/v2/blog/{blog}/post
   ├── Dev.to   ──► /api/articles
   └── Demo     ──► in-memory store + GET /demo/posts/{id}
   │
@@ -207,6 +209,11 @@ See [`.env.example`](.env.example) for the full annotated list.
 | `BLUESKY_SERVICE_URL` | `https://bsky.social` | PDS base URL. |
 | `MASTODON_INSTANCE_URL` | — | e.g. `https://mastodon.social`; scheme optional. |
 | `MASTODON_ACCESS_TOKEN` | — | Token with `write:statuses`. |
+| `TUMBLR_CLIENT_ID` | — | OAuth2 consumer key (only needed by `scripts/tumblr_auth.py`). |
+| `TUMBLR_CLIENT_SECRET` | — | OAuth2 secret key (only needed by `scripts/tumblr_auth.py`). |
+| `TUMBLR_REDIRECT_URI` | `http://localhost:8765/callback` | Must match the app's callback URL. |
+| `TUMBLR_ACCESS_TOKEN` | — | Token printed by `scripts/tumblr_auth.py`. |
+| `TUMBLR_BLOG_IDENTIFIER` | — | e.g. `myblog.tumblr.com`; a bare name gets the suffix. |
 | `DEVTO_API_KEY` | — | DEV API key. |
 
 ### Platform selection rules
@@ -407,6 +414,12 @@ with `com.atproto.server.createSession`, then writes an
 `write:statuses` scope and copy its access token. Any Mastodon-compatible
 instance works; `MASTODON_INSTANCE_URL` may omit `https://`.
 
+**Tumblr** — create an app at <https://www.tumblr.com/oauth/apps> with the
+callback URL `http://localhost:8765/callback`, put the consumer key and secret
+in `.env`, then run `python scripts/tumblr_auth.py`. It opens the authorization
+page, captures the callback locally and prints the `TUMBLR_ACCESS_TOKEN` line.
+Posts are created as neo-format text blocks with `state: published`.
+
 **Dev.to** — generate a key under *Settings → Extensions → DEV API Keys*. Dev.to
 publishes articles rather than micro-posts, so the integration derives a short
 title from the message and publishes the message as the article body.
@@ -424,7 +437,7 @@ ruff check .
 Expected result:
 
 ```
-56 passed
+59 passed
 All checks passed!
 ```
 
@@ -563,12 +576,15 @@ automated-posting/
 │   │   ├── slack.py             # Slack incoming webhook
 │   │   ├── bluesky.py           # AT Protocol session + post
 │   │   ├── mastodon.py          # Mastodon statuses API
+│   │   ├── tumblr.py            # Tumblr v2 text posts
 │   │   ├── devto.py             # Forem articles API
 │   │   ├── demo.py              # Local sandbox + in-memory store
 │   │   └── __init__.py          # registry and internal selection
 │   └── services/
 │       ├── validation.py        # 200-char / single-CTA validation
 │       └── posting_service.py   # concurrent fan-out and isolation
+├── scripts/
+│   └── tumblr_auth.py           # OAuth2 helper for the Tumblr token
 ├── tests/
 │   ├── conftest.py              # isolation from local .env
 │   ├── test_validation.py

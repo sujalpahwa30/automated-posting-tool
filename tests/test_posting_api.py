@@ -226,6 +226,7 @@ def test_health_and_platform_listing(client) -> None:
         "slack",
         "bluesky",
         "mastodon",
+        "tumblr",
         "devto",
         "demo",
     ]

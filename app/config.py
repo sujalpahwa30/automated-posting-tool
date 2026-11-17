@@ -65,6 +65,14 @@ class Settings(BaseSettings):
     # Dev.to (Forem) - API key from the account settings.
     devto_api_key: str | None = None
 
+    # Tumblr - OAuth2 app credentials are only needed to obtain a token; the
+    # adapter itself uses the access token and the target blog.
+    tumblr_client_id: str | None = None
+    tumblr_client_secret: str | None = None
+    tumblr_access_token: str | None = None
+    tumblr_blog_identifier: str | None = None
+    tumblr_redirect_uri: str = "http://localhost:8765/callback"
+
     @field_validator("public_base_url")
     @classmethod
     def _clean_base_url(cls, value: str) -> str:
