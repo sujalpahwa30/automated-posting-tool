@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import ssl
+from functools import lru_cache
+
 import httpx
 
-from app.platforms.base import Platform, PlatformError, Post
+from app.platforms.base import Platform, PlatformError, PlatformNetworkError, Post
 from app.schemas import PlatformResult
 
 
@@ -18,6 +21,23 @@ class TumblrPlatform(Platform):
         return (self.settings.tumblr_access_token or "",)
 
     async def _publish(self, client: httpx.AsyncClient, post: Post) -> PlatformResult:
+        try:
+            return await self._post_once(client, post)
+        except PlatformNetworkError:
+            # Some networks (antivirus proxies, ISP middleboxes) reset httpx's
+            # default TLS 1.2/1.3 negotiation against Tumblr's edge, even though
+            # either version works on its own. A connection-level failure means
+            # no request was processed, so one retry over TLS 1.2 is safe.
+            async with self._fallback_client() as fallback:
+                return await self._post_once(fallback, post)
+
+    def _fallback_client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            timeout=self.settings.platform_timeout_seconds,
+            verify=build_tls_context(),
+        )
+
+    async def _post_once(self, client: httpx.AsyncClient, post: Post) -> PlatformResult:
         blog = normalise_blog(self.settings.tumblr_blog_identifier or "")
 
         # Neo-format posts: a single text block, published immediately.
@@ -38,6 +58,20 @@ class TumblrPlatform(Platform):
         if not post_id:
             raise PlatformError("Tumblr did not return the created post id")
         return self.success(f"https://{blog}/post/{post_id}", public_access=True)
+
+
+@lru_cache(maxsize=1)
+def build_tls_context() -> ssl.SSLContext:
+    """A TLS 1.2-only context used for Tumblr requests.
+
+    Pinning the version keeps the handshake predictable on networks that reset
+    the default 1.2/1.3 negotiation. TLS 1.2 with modern ciphers is still
+    required by every current provider, so nothing is weakened in practice.
+    """
+    context = ssl.create_default_context()
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.maximum_version = ssl.TLSVersion.TLSv1_2
+    return context
 
 
 def normalise_blog(value: str) -> str:

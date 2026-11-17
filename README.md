@@ -420,6 +420,11 @@ in `.env`, then run `python scripts/tumblr_auth.py`. It opens the authorization
 page, captures the callback locally and prints the `TUMBLR_ACCESS_TOKEN` line.
 Posts are created as neo-format text blocks with `state: published`.
 
+The token exchange pins TLS 1.2 because some networks (antivirus proxies, ISP
+middleboxes) reset the default TLS 1.2/1.3 negotiation against Tumblr's edge;
+the adapter retries once over the same pinned context if a connection is reset
+before any response.
+
 **Dev.to** — generate a key under *Settings → Extensions → DEV API Keys*. Dev.to
 publishes articles rather than micro-posts, so the integration derives a short
 title from the message and publishes the message as the article body.

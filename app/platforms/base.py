@@ -26,6 +26,10 @@ class PlatformError(Exception):
     """An expected, user-safe publishing failure."""
 
 
+class PlatformNetworkError(PlatformError):
+    """A connection-level failure: the provider never returned a response."""
+
+
 class Platform(ABC):
     """Base class for one third-party integration.
 
@@ -129,7 +133,7 @@ class Platform(ABC):
             raise PlatformError(f"Request to {self.name} timed out") from exc
         except httpx.HTTPError as exc:
             # str(exc) may contain the request URL, so only the type is reported.
-            raise PlatformError(f"Network error talking to {self.name} ({type(exc).__name__})") from exc
+            raise PlatformNetworkError(f"Network error talking to {self.name} ({type(exc).__name__})") from exc
 
         if response.status_code not in expected:
             detail = _redact(_describe_error(response), (*self._secrets(), *secrets))

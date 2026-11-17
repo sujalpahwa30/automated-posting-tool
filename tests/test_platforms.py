@@ -296,6 +296,47 @@ def test_tumblr_publishes_text_post(make_settings) -> None:
     assert captured["body"]["state"] == "published"
 
 
+def test_tumblr_retries_after_connection_reset(make_settings, monkeypatch) -> None:
+    """A reset before any response is retried over a pinned-TLS client."""
+
+    def reset_handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.RemoteProtocolError("Server disconnected without sending a response")
+
+    def good_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(201, json={"response": {"id": "9"}})
+
+    platform = TumblrPlatform(
+        make_settings(tumblr_access_token="tumblr-token", tumblr_blog_identifier="demo-blog.tumblr.com")
+    )
+
+    def factory() -> httpx.AsyncClient:
+        return httpx.AsyncClient(transport=httpx.MockTransport(good_handler))
+
+    monkeypatch.setattr(platform, "_fallback_client", factory)
+    result = asyncio.run(_publish(platform, reset_handler))
+
+    assert result.status == "success"
+    assert result.posted_url == "https://demo-blog.tumblr.com/post/9"
+
+
+def test_tumblr_api_error_is_not_retried(make_settings, monkeypatch) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"meta": {"status": 401, "msg": "Unauthorized"}, "response": []})
+
+    platform = TumblrPlatform(
+        make_settings(tumblr_access_token="tumblr-token", tumblr_blog_identifier="demo-blog.tumblr.com")
+    )
+
+    def factory() -> httpx.AsyncClient:  # pragma: no cover - must not be used
+        raise AssertionError("an HTTP error must not trigger a retry")
+
+    monkeypatch.setattr(platform, "_fallback_client", factory)
+    result = asyncio.run(_publish(platform, handler))
+
+    assert result.status == "failed"
+    assert "HTTP 401" in result.error
+
+
 def test_tumblr_blog_name_gets_tumblr_suffix(make_settings) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/v2/blog/demo-blog.tumblr.com/post"

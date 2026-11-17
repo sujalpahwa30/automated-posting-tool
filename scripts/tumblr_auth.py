@@ -33,6 +33,7 @@ import httpx
 sys.path.insert(0, ".")
 
 from app.config import Settings  # noqa: E402
+from app.platforms.tumblr import build_tls_context  # noqa: E402
 
 AUTHORIZE_URL = "https://www.tumblr.com/oauth2/authorize"
 TOKEN_URL = "https://api.tumblr.com/v2/oauth2/token"
@@ -126,17 +127,25 @@ def main() -> int:
         return 1
 
     print("\nExchanging the code for a token...")
-    with httpx.Client(timeout=30) as client:
-        response = client.post(
-            TOKEN_URL,
-            data={
-                "grant_type": "authorization_code",
-                "code": _CallbackHandler.code,
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "redirect_uri": redirect_uri,
-            },
+    try:
+        with httpx.Client(timeout=30, verify=build_tls_context()) as client:
+            response = client.post(
+                TOKEN_URL,
+                data={
+                    "grant_type": "authorization_code",
+                    "code": _CallbackHandler.code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": redirect_uri,
+                },
+            )
+    except httpx.HTTPError as exc:
+        print(
+            "The token exchange could not reach Tumblr "
+            f"({type(exc).__name__}). This is a network-level problem, not a "
+            "credential problem: check any antivirus/VPN/firewall, then re-run."
         )
+        return 1
 
     if response.status_code != 200:
         print(f"Token exchange failed: HTTP {response.status_code} {response.text[:300]}")
