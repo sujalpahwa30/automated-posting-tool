@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import ssl
 from functools import lru_cache
 
@@ -40,16 +41,14 @@ class TumblrPlatform(Platform):
     async def _post_once(self, client: httpx.AsyncClient, post: Post) -> PlatformResult:
         blog = normalise_blog(self.settings.tumblr_blog_identifier or "")
 
-        # Neo-format posts: a single text block, published immediately.
+        # Legacy text posts: Tumblr rejects a neo-format "content" array with
+        # code 8001 ("Post cannot be empty"), but accepts type=text + body.
         document, _ = await self.request_json(
             client,
             "POST",
             f"https://api.tumblr.com/v2/blog/{blog}/post",
             headers={"Authorization": f"Bearer {self.settings.tumblr_access_token or ''}"},
-            json_body={
-                "content": [{"type": "text", "text": post.message}],
-                "state": "published",
-            },
+            json_body={"type": "text", "body": render_body(post)},
             secrets=self._secrets(),
         )
 
@@ -72,6 +71,17 @@ def build_tls_context() -> ssl.SSLContext:
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.maximum_version = ssl.TLSVersion.TLSv1_2
     return context
+
+
+def render_body(post: Post) -> str:
+    """Render the message as a legacy text-post body.
+
+    Tumblr treats ``body`` as HTML, so the text is escaped and the single CTA
+    URL becomes a real link.
+    """
+    safe_url = html.escape(post.cta_url, quote=False)
+    anchor = f'<a href="{html.escape(post.cta_url, quote=True)}">{safe_url}</a>'
+    return html.escape(post.message, quote=False).replace(safe_url, anchor, 1)
 
 
 def normalise_blog(value: str) -> str:

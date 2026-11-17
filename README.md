@@ -418,7 +418,9 @@ instance works; `MASTODON_INSTANCE_URL` may omit `https://`.
 callback URL `http://localhost:8765/callback`, put the consumer key and secret
 in `.env`, then run `python scripts/tumblr_auth.py`. It opens the authorization
 page, captures the callback locally and prints the `TUMBLR_ACCESS_TOKEN` line.
-Posts are created as neo-format text blocks with `state: published`.
+Posts are created as legacy `type=text` posts; Tumblr rejects the neo-format
+`content` array from API-created apps with code `8001` ("Post cannot be empty").
+The body is HTML-escaped and the CTA URL is turned into a link.
 
 The token exchange pins TLS 1.2 because some networks (antivirus proxies, ISP
 middleboxes) reset the default TLS 1.2/1.3 negotiation against Tumblr's edge;

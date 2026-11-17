@@ -292,8 +292,9 @@ def test_tumblr_publishes_text_post(make_settings) -> None:
     assert result.public_access is True
     assert captured["url"] == "https://api.tumblr.com/v2/blog/demo-blog.tumblr.com/post"
     assert captured["authorization"] == "Bearer tumblr-token"
-    assert captured["body"]["content"] == [{"type": "text", "text": MESSAGE}]
-    assert captured["body"]["state"] == "published"
+    assert captured["body"]["type"] == "text"
+    assert "Check out our latest business platform" in captured["body"]["body"]
+    assert '<a href="https://example.com">https://example.com</a>' in captured["body"]["body"]
 
 
 def test_tumblr_retries_after_connection_reset(make_settings, monkeypatch) -> None:
