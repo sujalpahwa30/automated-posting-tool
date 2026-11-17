@@ -199,6 +199,28 @@ def test_discord_without_guild_is_not_public(make_settings) -> None:
     assert result.public_access is False
 
 
+def test_discord_falls_back_to_webhook_details_for_guild(make_settings) -> None:
+    """Live Discord omits guild_id from the execute-webhook response."""
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.method)
+        if request.method == "GET":
+            return httpx.Response(200, json={"id": "1", "guild_id": "30", "channel_id": "20"})
+        return httpx.Response(200, json={"id": "10", "channel_id": "20"})
+
+    platform = DiscordPlatform(make_settings(discord_webhook_url="https://discord.com/api/webhooks/1/webhook-token"))
+
+    first = asyncio.run(_publish(platform, handler))
+    second = asyncio.run(_publish(platform, handler))
+
+    assert first.posted_url == "https://discord.com/channels/30/20/10"
+    assert second.posted_url == "https://discord.com/channels/30/20/10"
+    assert first.public_access is True
+    # The guild id is cached, so only one extra lookup happens.
+    assert calls.count("GET") == 1
+
+
 def test_slack_webhook_delivers_message(make_settings) -> None:
     captured: dict[str, object] = {}
 

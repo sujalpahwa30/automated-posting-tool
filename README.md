@@ -16,7 +16,7 @@ POST http://localhost:4000/posting
 - **8 real third-party integrations**: X (Twitter), LinkedIn, Telegram, Discord,
   Slack, Bluesky, Mastodon, Dev.to.
 - **1 local demo integration** for offline review without credentials.
-- **55 automated tests**, linted with Ruff, CI workflow included.
+- **56 automated tests**, linted with Ruff, CI workflow included.
 - Interactive docs: <http://localhost:4000/docs>.
 
 A real captured request/response and server log are in
@@ -387,7 +387,9 @@ returns the channel username, which is used to build the public `t.me` URL.
 
 **Discord** — create a webhook under *Server Settings → Integrations →
 Webhooks*. The integration calls it with `?wait=true` so the created message id
-is returned, and disables `@everyone`/role pings via `allowed_mentions`.
+is returned, and disables `@everyone`/role pings via `allowed_mentions`. That
+response omits `guild_id`, so the guild is read from the webhook details (once,
+then cached) to build the channel message URL.
 
 **Slack** — create a free workspace, then add an *Incoming Webhook* under
 <https://api.slack.com/apps> (*Create New App → From scratch → Incoming
@@ -422,7 +424,7 @@ ruff check .
 Expected result:
 
 ```
-55 passed
+56 passed
 All checks passed!
 ```
 
