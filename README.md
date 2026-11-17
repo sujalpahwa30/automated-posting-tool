@@ -16,16 +16,25 @@ POST http://localhost:4000/posting
 - **9 real third-party integrations**: X (Twitter), LinkedIn, Telegram, Discord,
   Slack, Bluesky, Mastodon, Tumblr, Dev.to.
 - **1 local demo integration** for offline review without credentials.
-- **59 automated tests**, linted with Ruff, CI workflow included.
+- **61 automated tests**, linted with Ruff, CI workflow included.
 - Interactive docs: <http://localhost:4000/docs>.
 
-A real captured request/response and server log are in
-[`docs/sample-run.txt`](docs/sample-run.txt).
+One request, five live platforms, all successful:
+
+```json
+{"success": true, "summary": {"total": 5, "successful": 5, "failed": 0}}
+```
+
+The full request/response, public-URL verification, a deliberate failure-isolation
+run and the server logs are captured in
+[`docs/sample-run.txt`](docs/sample-run.txt). Screenshots of every delivered post
+are in [`docs/screenshots/`](docs/screenshots/).
 
 ---
 
 ## Contents
 
+- [Live evidence](#live-evidence)
 - [Integrations](#integrations)
 - [How it works](#how-it-works)
 - [Quick start](#quick-start)
@@ -39,6 +48,46 @@ A real captured request/response and server log are in
 - [Known limitations](#known-limitations)
 - [What I would improve next](#what-i-would-improve-next)
 - [Project structure](#project-structure)
+
+---
+
+## Live evidence
+
+One `POST /posting` with `PLATFORMS=telegram,discord,slack,bluesky,tumblr`
+returned `5/5 success` in 1.8 s. Each result was opened separately to confirm
+the post is really public:
+
+| Platform | Result | Public URL | Screenshot |
+|---|---|---|---|
+| Telegram | `success` | <https://t.me/sp_autopost_test/5> | [Telegram](docs/screenshots/01-telegram.png) |
+| Discord | `success` | `discord.com/channels/…/1572156341689257994` | [Discord](docs/screenshots/02-discord.png) |
+| Bluesky | `success` | <https://bsky.app/profile/sujalpahwa30.bsky.social/post/3n2ikimutav2j> | [Bluesky](docs/screenshots/03-bluesky.png) |
+| Slack | `success` | none — webhooks expose no permalink | [Slack](docs/screenshots/04-slack.png) |
+| Tumblr | `success` | <https://sujalpahwa30.tumblr.com/post/833514825848143872> | [Tumblr](docs/screenshots/05-tumblr.png) |
+
+| Telegram | Discord |
+|---|---|
+| ![Telegram post](docs/screenshots/01-telegram.png) | ![Discord post](docs/screenshots/02-discord.png) |
+
+| Bluesky | Tumblr |
+|---|---|
+| ![Bluesky post](docs/screenshots/03-bluesky.png) | ![Tumblr post](docs/screenshots/05-tumblr.png) |
+
+![Slack post](docs/screenshots/04-slack.png)
+
+Verification was done in a private/incognito window, not just in the tool's own
+API response. The Tumblr post was additionally read back through the public v2
+API (`state: published`) and Bluesky through the unauthenticated public AppView.
+Exact commands and outputs are in [`docs/sample-run.txt`](docs/sample-run.txt).
+
+**Verification status of all nine integrations**
+
+| Integration | Live-tested | Notes |
+|---|---|---|
+| Telegram, Discord, Slack, Bluesky, Tumblr | ✅ | posted and verified publicly |
+| Dev.to | ⚠️ | API accepts articles (`201`), but this account was placed under moderation by Dev.to, so its public pages return `404`. Kept in the codebase, excluded from the headline run. |
+| Mastodon | ⏳ | adapter and tests complete; no instance account available during the test window |
+| X (Twitter), LinkedIn | ⏳ | adapters and tests complete; require paid/approved API access |
 
 ---
 
@@ -292,38 +341,65 @@ Top-level behaviour:
 
 #### Sample real response
 
-Captured live with `PLATFORMS=bluesky,demo` and a real Bluesky account (full run
-in [`docs/sample-run.txt`](docs/sample-run.txt)):
+Captured live with `PLATFORMS=telegram,discord,slack,bluesky,tumblr` (full run
+and public verification in [`docs/sample-run.txt`](docs/sample-run.txt)):
 
 ```json
 {
   "success": true,
-  "summary": { "total": 2, "successful": 2, "failed": 0 },
+  "summary": { "total": 5, "successful": 5, "failed": 0 },
   "results": [
     {
-      "platform": "Bluesky",
+      "platform": "Telegram",
       "status": "success",
-      "posted_url": "https://bsky.app/profile/sujalpahwa30.bsky.social/post/3n2hdbam6lu2b",
+      "posted_url": "https://t.me/sp_autopost_test/5",
       "public_access": true,
-      "date": "2026-11-16",
-      "time": "20:05:58",
+      "date": "2026-11-17",
+      "time": "07:48:02",
       "error": null
     },
     {
-      "platform": "Demo (local sandbox)",
+      "platform": "Discord",
       "status": "success",
-      "posted_url": "http://localhost:4000/demo/posts/3ced8d35eb0f4f95",
+      "posted_url": "https://discord.com/channels/1571981751755083878/1571981752371773472/1572156341689257994",
+      "public_access": true,
+      "date": "2026-11-17",
+      "time": "07:48:01",
+      "error": null
+    },
+    {
+      "platform": "Bluesky",
+      "status": "success",
+      "posted_url": "https://bsky.app/profile/sujalpahwa30.bsky.social/post/3n2ikimutav2j",
+      "public_access": true,
+      "date": "2026-11-17",
+      "time": "07:48:02",
+      "error": null
+    },
+    {
+      "platform": "Slack",
+      "status": "success",
+      "posted_url": null,
       "public_access": false,
-      "date": "2026-11-16",
-      "time": "20:05:57",
+      "date": "2026-11-17",
+      "time": "07:48:01",
+      "error": null
+    },
+    {
+      "platform": "Tumblr",
+      "status": "success",
+      "posted_url": "https://sujalpahwa30.tumblr.com/post/833514825848143872",
+      "public_access": true,
+      "date": "2026-11-17",
+      "time": "07:48:02",
       "error": null
     }
   ]
 }
 ```
 
-`date`/`time` are UTC. The Bluesky URL was confirmed publicly readable without
-credentials via `app.bsky.feed.getPostThread` on the public AppView.
+`date`/`time` are UTC. Slack reports `posted_url: null` because incoming webhooks
+return no message identifier — the message is still delivered.
 
 #### Sample validation error
 
@@ -444,7 +520,7 @@ ruff check .
 Expected result:
 
 ```
-59 passed
+61 passed
 All checks passed!
 ```
 
@@ -527,10 +603,15 @@ The image runs the exact command from the brief:
 
 - Publishing is synchronous: the response waits for the slowest platform, bounded
   by `PLATFORM_TIMEOUT_SECONDS`.
-- No automatic retry/backoff. POSTs are not idempotent, so retries could duplicate
-  content; `429`/`5xx` responses are reported instead.
-- Tokens are static environment values. There is no OAuth callback flow, token
-  refresh, or encrypted token storage.
+- No general retry/backoff. POSTs are not idempotent, so retries could duplicate
+  content; `429`/`5xx` responses are reported instead. The single exception is
+  Tumblr, which retries once when the connection is reset before any response
+  (see the TLS note in its setup section).
+- Tokens are static environment values. There is no runtime OAuth callback flow
+  and no token refresh; `scripts/tumblr_auth.py` obtains a token once, offline.
+- Dev.to can hide an account behind its spam filter: the API still accepts
+  articles while the public pages return `404`. That is provider-side moderation
+  and outside the service's control.
 - X posting requires a paid API plan in most cases; LinkedIn requires an active
   API version; provider policies change.
 - `public_access` is a best-effort flag, not a guarantee (see the table notes).
