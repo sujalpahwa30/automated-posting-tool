@@ -203,8 +203,8 @@ Key properties:
 Requirements: Python 3.11+ (tested on 3.12.6).
 
 ```bash
-git clone <your-repository-url>
-cd automated-posting
+git clone https://github.com/sujalpahwa30/automated-posting-tool.git
+cd automated-posting-tool
 
 python -m venv .venv
 # Windows PowerShell:
@@ -672,7 +672,7 @@ The image runs the exact command from the brief:
 ## Project structure
 
 ```
-automated-posting/
+automated-posting-tool/
 ├── app/
 │   ├── main.py                  # FastAPI app, lifespan, routes, error envelope
 │   ├── config.py                # pydantic-settings configuration
