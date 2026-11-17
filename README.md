@@ -16,7 +16,7 @@ POST http://localhost:4000/posting
 - **9 real third-party integrations**: X (Twitter), LinkedIn, Telegram, Discord,
   Slack, Bluesky, Mastodon, Tumblr, Dev.to.
 - **1 local demo integration** for offline review without credentials.
-- **61 automated tests**, linted with Ruff, CI workflow included.
+- **61 automated tests**, linted with Ruff, formatting checked.
 - Interactive docs: <http://localhost:4000/docs>.
 
 One request, five live platforms, all successful:
@@ -708,8 +708,7 @@ automated-posting-tool/
 ├── Dockerfile
 ├── requirements.txt
 ├── requirements-dev.txt
-├── pyproject.toml               # pytest + Ruff configuration
-└── .github/workflows/tests.yml  # CI: lint + tests
+└── pyproject.toml               # pytest + Ruff configuration
 ```
 
 ---
